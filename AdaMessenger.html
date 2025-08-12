@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MessagApp - Service de Messagerie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .chat-bubble-sent {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .chat-bubble-received {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .story-ring {
+            background: linear-gradient(45deg, #f093fb, #f5576c, #667eea, #764ba2);
+            padding: 4px;
+            border-radius: 50%;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            animation: pulse-ring 2s infinite;
+        }
+        .story-inner {
+            background: white;
+            border-radius: 50%;
+            padding: 3px;
+        }
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); }
+            50% { box-shadow: 0 6px 20px rgba(240, 147, 251, 0.4); }
+            100% { box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-purple-100 to-pink-100 min-h-screen">
+    <!-- Écran de connexion -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">MessagApp</h1>
+                <p class="text-gray-600 mt-2">Connectez-vous avec vos amis</p>
+            </div>
+            
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Pseudo</label>
+                    <input type="text" id="usernameInput" placeholder="Entrez votre pseudo" 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                </div>
+                
+                <div class="space-y-3">
+                    <button onclick="login()" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition duration-200">
+                        Se connecter
+                    </button>
+                    <button onclick="createAccount()" class="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white py-3 rounded-lg font-semibold hover:from-green-600 hover:to-blue-600 transition duration-200">
+                        Créer un compte
+                    </button>
+                </div>
+                
+                <div id="loginMessage" class="text-center text-sm hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application principale -->
+    <div id="mainApp" class="hidden min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg border-b">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center h-16">
+                    <h1 class="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">MessagApp</h1>
+                    <div class="flex space-x-4">
+                        <button onclick="showSection('messages')" id="messagesTab" class="px-4 py-2 rounded-lg bg-purple-100 text-purple-700 font-medium">Messages</button>
+                        <button onclick="showSection('stories')" id="storiesTab" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100">Stories</button>
+                        <button onclick="showSection('friends')" id="friendsTab" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100">Amis</button>
+                        <button onclick="showSection('settings')" id="settingsTab" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100">Paramètres</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Section Messages -->
+        <div id="messagesSection" class="max-w-7xl mx-auto p-4">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-120px)]">
+                <!-- Liste des conversations -->
+                <div class="bg-white rounded-xl shadow-lg p-4">
+                    <h2 class="text-xl font-bold mb-4">Conversations</h2>
+                    <div id="conversationsList" class="space-y-2">
+                        <p class="text-gray-500 text-center py-8">Aucune conversation</p>
+                    </div>
+                </div>
+
+                <!-- Zone de chat -->
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-lg flex flex-col">
+                    <div id="chatHeader" class="p-4 border-b bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-xl">
+                        <p class="text-gray-500">Sélectionnez une conversation</p>
+                    </div>
+                    <div id="chatMessages" class="flex-1 p-4 overflow-y-auto space-y-3">
+                        <!-- Messages apparaîtront ici -->
+                    </div>
+                    <div id="chatInput" class="p-4 border-t hidden">
+                        <div class="flex space-x-2">
+                            <input type="text" id="messageInput" placeholder="Tapez votre message..." 
+                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                   onkeypress="if(event.key==='Enter') sendMessage()">
+                            <button onclick="deleteConversation()" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600" title="Supprimer la conversation">
+                                🗑️
+                            </button>
+                            <button onclick="sendMessage()" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700">
+                                Envoyer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Stories -->
+        <div id="storiesSection" class="hidden max-w-7xl mx-auto p-4">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Stories</h2>
+                    <button onclick="showAddStoryModal()" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700">
+                        + Ajouter une story
+                    </button>
+                </div>
+                
+                <div id="storiesList" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    <!-- Stories apparaîtront ici -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Amis -->
+        <div id="friendsSection" class="hidden max-w-7xl mx-auto p-4">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-xl font-bold mb-4">Ajouter un ami</h2>
+                    <div class="space-y-4">
+                        <input type="text" id="friendUsernameInput" placeholder="Pseudo de votre ami" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <button onclick="addFriend()" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700">
+                            Ajouter
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-xl font-bold mb-4">Mes amis</h2>
+                    <div id="friendsList" class="space-y-3">
+                        <p class="text-gray-500 text-center py-8">Aucun ami ajouté</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Paramètres -->
+        <div id="settingsSection" class="hidden max-w-4xl mx-auto p-4">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-6">Paramètres</h2>
+                
+                <div class="space-y-6">
+                    <div class="border-b pb-4">
+                        <h3 class="text-lg font-semibold mb-2">Profil</h3>
+                        <p class="text-gray-600">Pseudo: <span id="currentUsername" class="font-medium"></span></p>
+                    </div>
+                    
+                    <div class="border-b pb-4">
+                        <h3 class="text-lg font-semibold mb-2">Notifications</h3>
+                        <label class="flex items-center space-x-3">
+                            <input type="checkbox" id="notificationsEnabled" checked class="w-4 h-4 text-purple-600 rounded focus:ring-purple-500">
+                            <span>Activer les notifications</span>
+                        </label>
+                    </div>
+                    
+                    <div class="border-b pb-4">
+                        <h3 class="text-lg font-semibold mb-2">Thème</h3>
+                        <select id="themeSelect" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            <option value="light">Clair</option>
+                            <option value="dark">Sombre</option>
+                        </select>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <button onclick="logout()" class="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 font-semibold">
+                            Se déconnecter
+                        </button>
+                        <button onclick="deleteAccount()" class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-semibold">
+                            Supprimer mon compte
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pour ajouter une story -->
+    <div id="addStoryModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-bold mb-4">Ajouter une story</h3>
+            
+            <!-- Onglets pour choisir le type de story -->
+            <div class="flex mb-4 bg-gray-100 rounded-lg p-1">
+                <button onclick="switchStoryTab('text')" id="textStoryTab" class="flex-1 py-2 px-4 rounded-md bg-white shadow-sm font-medium text-purple-600">
+                    📝 Texte
+                </button>
+                <button onclick="switchStoryTab('photo')" id="photoStoryTab" class="flex-1 py-2 px-4 rounded-md font-medium text-gray-600 hover:text-purple-600">
+                    📷 Photo
+                </button>
+            </div>
+
+            <!-- Story texte -->
+            <div id="textStoryContent">
+                <textarea id="storyContent" placeholder="Que voulez-vous partager ?" 
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent h-32 resize-none"></textarea>
+            </div>
+
+            <!-- Story photo -->
+            <div id="photoStoryContent" class="hidden">
+                <div class="space-y-4">
+                    <!-- Caméra -->
+                    <div id="cameraSection">
+                        <video id="cameraVideo" class="w-full h-48 bg-gray-200 rounded-lg object-cover hidden"></video>
+                        <canvas id="photoCanvas" class="hidden"></canvas>
+                        <div id="cameraPlaceholder" class="w-full h-48 bg-gray-200 rounded-lg flex items-center justify-center">
+                            <p class="text-gray-500">Caméra non activée</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Photo prise -->
+                    <div id="capturedPhotoSection" class="hidden">
+                        <img id="capturedPhoto" class="w-full h-48 object-cover rounded-lg">
+                        <textarea id="photoCaption" placeholder="Ajoutez une légende..." 
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent mt-2"></textarea>
+                    </div>
+                    
+                    <!-- Boutons caméra -->
+                    <div class="flex space-x-2">
+                        <button onclick="startCamera()" id="startCameraBtn" class="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600">
+                            📷 Activer caméra
+                        </button>
+                        <button onclick="takePhoto()" id="takePhotoBtn" class="flex-1 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 hidden">
+                            📸 Prendre photo
+                        </button>
+                        <button onclick="retakePhoto()" id="retakePhotoBtn" class="flex-1 bg-yellow-500 text-white py-2 rounded-lg hover:bg-yellow-600 hidden">
+                            🔄 Reprendre
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex space-x-3 mt-4">
+                <button onclick="addStory()" class="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2 rounded-lg hover:from-purple-700 hover:to-pink-700">
+                    Publier
+                </button>
+                <button onclick="closeAddStoryModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
+                    Annuler
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let currentUser = null;
+        let currentChat = null;
+        let users = JSON.parse(localStorage.getItem('messagapp_users') || '{}');
+        let messages = JSON.parse(localStorage.getItem('messagapp_messages') || '{}');
+        let stories = JSON.parse(localStorage.getItem('messagapp_stories') || '[]');
+        let friends = JSON.parse(localStorage.getItem('messagapp_friends') || '{}');
+        let cameraStream = null;
+        let currentStoryType = 'text';
+
+        // Fonctions de connexion
+        function login() {
+            const username = document.getElementById('usernameInput').value.trim();
+            if (!username) {
+                showMessage('Veuillez entrer un pseudo', 'error');
+                return;
+            }
+
+            // Vérifier si le compte existe
+            if (!users[username]) {
+                showMessage('Ce compte n\'existe pas. Créez d\'abord un compte !', 'error');
+                return;
+            }
+
+            currentUser = username;
+            document.getElementById('currentUsername').textContent = username;
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            
+            showMessage('Connexion réussie !', 'success');
+            loadConversations();
+            loadFriends();
+            loadStories();
+        }
+
+        function createAccount() {
+            const username = document.getElementById('usernameInput').value.trim();
+            if (!username) {
+                showMessage('Veuillez entrer un pseudo', 'error');
+                return;
+            }
+
+            if (username.length < 3) {
+                showMessage('Le pseudo doit contenir au moins 3 caractères', 'error');
+                return;
+            }
+
+            // Vérifier si le compte existe déjà
+            if (users[username]) {
+                showMessage('Ce pseudo est déjà pris. Choisissez-en un autre !', 'error');
+                return;
+            }
+
+            // Créer le nouveau compte
+            users[username] = {
+                username: username,
+                createdAt: new Date().toISOString()
+            };
+            friends[username] = [];
+            saveData();
+
+            showMessage('Compte créé avec succès ! Vous pouvez maintenant vous connecter.', 'success');
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('loginMessage');
+            messageDiv.textContent = message;
+            messageDiv.className = `text-center text-sm ${type === 'error' ? 'text-red-600 bg-red-50' : 'text-green-600 bg-green-50'} p-3 rounded-lg`;
+            messageDiv.classList.remove('hidden');
+            
+            setTimeout(() => {
+                messageDiv.classList.add('hidden');
+            }, 4000);
+        }
+
+        function logout() {
+            currentUser = null;
+            currentChat = null;
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('usernameInput').value = '';
+        }
+
+        // Navigation
+        function showSection(section) {
+            // Cacher toutes les sections
+            document.querySelectorAll('[id$="Section"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('[id$="Tab"]').forEach(el => {
+                el.className = 'px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100';
+            });
+
+            // Afficher la section sélectionnée
+            document.getElementById(section + 'Section').classList.remove('hidden');
+            document.getElementById(section + 'Tab').className = 'px-4 py-2 rounded-lg bg-purple-100 text-purple-700 font-medium';
+
+            if (section === 'stories') {
+                loadStories();
+            }
+        }
+
+        // Gestion des amis
+        function addFriend() {
+            const friendUsername = document.getElementById('friendUsernameInput').value.trim();
+            if (!friendUsername) {
+                alert('Veuillez entrer un pseudo');
+                return;
+            }
+
+            if (friendUsername === currentUser) {
+                alert('Vous ne pouvez pas vous ajouter vous-même');
+                return;
+            }
+
+            // Vérifier si le compte ami existe
+            if (!users[friendUsername]) {
+                alert('Ce compte n\'existe pas. Votre ami doit d\'abord créer un compte sur MessagApp !');
+                return;
+            }
+
+            if (!friends[currentUser].includes(friendUsername)) {
+                friends[currentUser].push(friendUsername);
+                // Ajouter réciproquement
+                if (!friends[friendUsername].includes(currentUser)) {
+                    friends[friendUsername].push(currentUser);
+                }
+                saveData();
+                loadFriends();
+                loadConversations();
+                document.getElementById('friendUsernameInput').value = '';
+                alert(`${friendUsername} a été ajouté à vos amis !`);
+            } else {
+                alert('Cette personne est déjà dans vos amis');
+            }
+        }
+
+        function loadFriends() {
+            const friendsList = document.getElementById('friendsList');
+            const userFriends = friends[currentUser] || [];
+
+            if (userFriends.length === 0) {
+                friendsList.innerHTML = '<p class="text-gray-500 text-center py-8">Aucun ami ajouté</p>';
+                return;
+            }
+
+            friendsList.innerHTML = userFriends.map(friend => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold">
+                            ${friend.charAt(0).toUpperCase()}
+                        </div>
+                        <span class="font-medium">${friend}</span>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="startChat('${friend}')" class="bg-purple-500 text-white px-3 py-1 rounded-lg hover:bg-purple-600 text-sm">
+                            Message
+                        </button>
+                        <button onclick="removeFriend('${friend}')" class="bg-red-500 text-white px-2 py-1 rounded-lg hover:bg-red-600 text-sm" title="Supprimer cet ami">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Gestion des messages
+        function loadConversations() {
+            const conversationsList = document.getElementById('conversationsList');
+            const userFriends = friends[currentUser] || [];
+
+            if (userFriends.length === 0) {
+                conversationsList.innerHTML = '<p class="text-gray-500 text-center py-8">Aucune conversation</p>';
+                return;
+            }
+
+            conversationsList.innerHTML = userFriends.map(friend => {
+                const chatKey = getChatKey(currentUser, friend);
+                const chatMessages = messages[chatKey] || [];
+                const lastMessage = chatMessages[chatMessages.length - 1];
+                
+                return `
+                    <div onclick="startChat('${friend}')" class="p-3 hover:bg-gray-50 rounded-lg cursor-pointer border-l-4 border-transparent hover:border-purple-500 transition-all">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold">
+                                ${friend.charAt(0).toUpperCase()}
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold">${friend}</h3>
+                                <p class="text-sm text-gray-500 truncate">
+                                    ${lastMessage ? (lastMessage.sender === currentUser ? 'Vous: ' : '') + lastMessage.content : 'Aucun message'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function startChat(friend) {
+            currentChat = friend;
+            document.getElementById('chatHeader').innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold">
+                        ${friend.charAt(0).toUpperCase()}
+                    </div>
+                    <h3 class="font-semibold text-lg">${friend}</h3>
+                </div>
+            `;
+            document.getElementById('chatInput').classList.remove('hidden');
+            loadChatMessages();
+        }
+
+        function loadChatMessages() {
+            if (!currentChat) return;
+
+            const chatMessages = document.getElementById('chatMessages');
+            const chatKey = getChatKey(currentUser, currentChat);
+            const messagesList = messages[chatKey] || [];
+
+            if (messagesList.length === 0) {
+                chatMessages.innerHTML = '<p class="text-gray-500 text-center py-8">Aucun message. Commencez la conversation !</p>';
+                return;
+            }
+
+            chatMessages.innerHTML = messagesList.map((msg, index) => {
+                const isSent = msg.sender === currentUser;
+                return `
+                    <div class="flex ${isSent ? 'justify-end' : 'justify-start'} group">
+                        <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-2xl text-white ${isSent ? 'chat-bubble-sent' : 'chat-bubble-received'} relative">
+                            ${isSent ? `<button onclick="deleteMessage(${index})" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600" title="Supprimer ce message">×</button>` : ''}
+                            <p>${msg.content}</p>
+                            <p class="text-xs opacity-75 mt-1">${new Date(msg.timestamp).toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'})}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const content = messageInput.value.trim();
+            
+            if (!content || !currentChat) return;
+
+            const chatKey = getChatKey(currentUser, currentChat);
+            if (!messages[chatKey]) {
+                messages[chatKey] = [];
+            }
+
+            messages[chatKey].push({
+                sender: currentUser,
+                content: content,
+                timestamp: new Date().toISOString()
+            });
+
+            saveData();
+            messageInput.value = '';
+            loadChatMessages();
+            loadConversations();
+        }
+
+        function getChatKey(user1, user2) {
+            return [user1, user2].sort().join('_');
+        }
+
+        // Gestion des stories
+        function showAddStoryModal() {
+            document.getElementById('addStoryModal').classList.remove('hidden');
+            switchStoryTab('text'); // Par défaut sur texte
+        }
+
+        function closeAddStoryModal() {
+            document.getElementById('addStoryModal').classList.add('hidden');
+            document.getElementById('storyContent').value = '';
+            document.getElementById('photoCaption').value = '';
+            stopCamera();
+            resetPhotoInterface();
+        }
+
+        function switchStoryTab(type) {
+            currentStoryType = type;
+            
+            // Réinitialiser les onglets
+            document.getElementById('textStoryTab').className = 'flex-1 py-2 px-4 rounded-md font-medium text-gray-600 hover:text-purple-600';
+            document.getElementById('photoStoryTab').className = 'flex-1 py-2 px-4 rounded-md font-medium text-gray-600 hover:text-purple-600';
+            
+            // Cacher tous les contenus
+            document.getElementById('textStoryContent').classList.add('hidden');
+            document.getElementById('photoStoryContent').classList.add('hidden');
+            
+            if (type === 'text') {
+                document.getElementById('textStoryTab').className = 'flex-1 py-2 px-4 rounded-md bg-white shadow-sm font-medium text-purple-600';
+                document.getElementById('textStoryContent').classList.remove('hidden');
+                stopCamera();
+            } else if (type === 'photo') {
+                document.getElementById('photoStoryTab').className = 'flex-1 py-2 px-4 rounded-md bg-white shadow-sm font-medium text-purple-600';
+                document.getElementById('photoStoryContent').classList.remove('hidden');
+            }
+        }
+
+        function addStory() {
+            let storyData = {
+                id: Date.now(),
+                author: currentUser,
+                timestamp: new Date().toISOString(),
+                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h
+                type: currentStoryType
+            };
+
+            if (currentStoryType === 'text') {
+                const content = document.getElementById('storyContent').value.trim();
+                if (!content) {
+                    alert('Veuillez écrire quelque chose');
+                    return;
+                }
+                storyData.content = content;
+            } else if (currentStoryType === 'photo') {
+                const capturedPhoto = document.getElementById('capturedPhoto');
+                if (!capturedPhoto.src || capturedPhoto.src === '') {
+                    alert('Veuillez prendre une photo');
+                    return;
+                }
+                storyData.photo = capturedPhoto.src;
+                storyData.caption = document.getElementById('photoCaption').value.trim();
+            }
+
+            stories.push(storyData);
+            saveData();
+            closeAddStoryModal();
+            loadStories();
+        }
+
+        // Fonctions caméra
+        async function startCamera() {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 }, 
+                        height: { ideal: 480 },
+                        facingMode: 'user' 
+                    } 
+                });
+                
+                const video = document.getElementById('cameraVideo');
+                video.srcObject = cameraStream;
+                video.play();
+                
+                // Afficher la vidéo et cacher le placeholder
+                document.getElementById('cameraPlaceholder').classList.add('hidden');
+                video.classList.remove('hidden');
+                
+                // Changer les boutons
+                document.getElementById('startCameraBtn').classList.add('hidden');
+                document.getElementById('takePhotoBtn').classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Erreur d\'accès à la caméra:', error);
+                alert('Impossible d\'accéder à la caméra. Vérifiez les permissions de votre navigateur.');
+            }
+        }
+
+        function takePhoto() {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('photoCanvas');
+            const capturedPhoto = document.getElementById('capturedPhoto');
+            
+            // Configurer le canvas avec les dimensions de la vidéo
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Dessiner l'image de la vidéo sur le canvas
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            
+            // Convertir en image
+            const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            capturedPhoto.src = photoDataUrl;
+            
+            // Afficher la photo capturée et cacher la vidéo
+            document.getElementById('cameraSection').classList.add('hidden');
+            document.getElementById('capturedPhotoSection').classList.remove('hidden');
+            document.getElementById('takePhotoBtn').classList.add('hidden');
+            document.getElementById('retakePhotoBtn').classList.remove('hidden');
+            
+            stopCamera();
+        }
+
+        function retakePhoto() {
+            // Réinitialiser l'interface
+            document.getElementById('capturedPhotoSection').classList.add('hidden');
+            document.getElementById('cameraSection').classList.remove('hidden');
+            document.getElementById('retakePhotoBtn').classList.add('hidden');
+            document.getElementById('startCameraBtn').classList.remove('hidden');
+            
+            // Réinitialiser la vidéo
+            document.getElementById('cameraVideo').classList.add('hidden');
+            document.getElementById('cameraPlaceholder').classList.remove('hidden');
+            
+            // Vider la photo et la légende
+            document.getElementById('capturedPhoto').src = '';
+            document.getElementById('photoCaption').value = '';
+        }
+
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+        }
+
+        function resetPhotoInterface() {
+            // Réinitialiser complètement l'interface photo
+            document.getElementById('cameraSection').classList.remove('hidden');
+            document.getElementById('capturedPhotoSection').classList.add('hidden');
+            document.getElementById('cameraVideo').classList.add('hidden');
+            document.getElementById('cameraPlaceholder').classList.remove('hidden');
+            document.getElementById('startCameraBtn').classList.remove('hidden');
+            document.getElementById('takePhotoBtn').classList.add('hidden');
+            document.getElementById('retakePhotoBtn').classList.add('hidden');
+            document.getElementById('capturedPhoto').src = '';
+        }
+
+        function loadStories() {
+            const storiesList = document.getElementById('storiesList');
+            const now = new Date();
+            
+            // Filtrer les stories expirées
+            stories = stories.filter(story => new Date(story.expiresAt) > now);
+            
+            // Filtrer les stories des amis et de l'utilisateur actuel
+            const userFriends = friends[currentUser] || [];
+            const relevantStories = stories.filter(story => 
+                story.author === currentUser || userFriends.includes(story.author)
+            );
+
+            if (relevantStories.length === 0) {
+                storiesList.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">Aucune story disponible</div>';
+                return;
+            }
+
+            storiesList.innerHTML = relevantStories.map(story => {
+                const storyIcon = story.type === 'photo' ? '📷' : '📝';
+                const isOwn = story.author === currentUser;
+                return `
+                    <div class="text-center cursor-pointer transform hover:scale-105 transition-all duration-300" onclick="viewStory('${story.id}')">
+                        <div class="story-ring mx-auto mb-3 relative group">
+                            <div class="story-inner">
+                                ${story.type === 'photo' && story.photo ? 
+                                    `<img src="${story.photo}" class="w-20 h-20 rounded-full object-cover shadow-lg">` :
+                                    `<div class="w-20 h-20 bg-gradient-to-br from-purple-400 via-pink-400 to-red-400 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+                                        ${story.author.charAt(0).toUpperCase()}
+                                    </div>`
+                                }
+                            </div>
+                            <div class="absolute -bottom-1 -right-1 bg-white rounded-full p-1.5 shadow-md">
+                                <span class="text-sm">${storyIcon}</span>
+                            </div>
+                            ${isOwn ? '<div class="absolute -top-1 -left-1 bg-green-500 rounded-full p-1"><span class="text-xs text-white">✓</span></div>' : ''}
+                            <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 rounded-full transition-all duration-300"></div>
+                        </div>
+                        <p class="text-sm font-semibold truncate ${isOwn ? 'text-purple-600' : 'text-gray-800'}">${isOwn ? 'Votre story' : story.author}</p>
+                        <p class="text-xs text-gray-500 font-medium">${getTimeAgo(story.timestamp)}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function viewStory(storyId) {
+            const story = stories.find(s => s.id == storyId);
+            if (!story) return;
+
+            // Créer une modal stylée pour toutes les stories
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-50';
+            
+            if (story.type === 'text') {
+                modal.innerHTML = `
+                    <div class="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-8 max-w-md w-full text-white shadow-2xl">
+                        <div class="text-center mb-6">
+                            <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <span class="text-2xl font-bold">${story.author.charAt(0).toUpperCase()}</span>
+                            </div>
+                            <h3 class="text-xl font-bold">${story.author}</h3>
+                            <p class="text-sm opacity-75">${getTimeAgo(story.timestamp)}</p>
+                        </div>
+                        <div class="bg-white bg-opacity-10 rounded-xl p-6 mb-6">
+                            <p class="text-lg text-center leading-relaxed">${story.content}</p>
+                        </div>
+                        <button onclick="this.parentElement.parentElement.remove()" class="w-full bg-white text-purple-600 py-3 rounded-xl font-semibold hover:bg-opacity-90 transition-all">
+                            Fermer
+                        </button>
+                    </div>
+                `;
+            } else if (story.type === 'photo') {
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl overflow-hidden max-w-md w-full shadow-2xl">
+                        <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-4 text-white">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                    <span class="font-bold">${story.author.charAt(0).toUpperCase()}</span>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold">${story.author}</h3>
+                                    <p class="text-sm opacity-75">${getTimeAgo(story.timestamp)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <img src="${story.photo}" class="w-full h-80 object-cover">
+                        ${story.caption ? `<div class="p-4"><p class="text-gray-700 text-center">${story.caption}</p></div>` : ''}
+                        <div class="p-4">
+                            <button onclick="this.parentElement.parentElement.parentElement.remove()" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all">
+                                Fermer
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            document.body.appendChild(modal);
+            
+            // Fermer en cliquant à l'extérieur
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+            
+            // Fermer avec la touche Échap
+            const handleEscape = (e) => {
+                if (e.key === 'Escape') {
+                    modal.remove();
+                    document.removeEventListener('keydown', handleEscape);
+                }
+            };
+            document.addEventListener('keydown', handleEscape);
+        }
+
+        function getTimeAgo(timestamp) {
+            const now = new Date();
+            const time = new Date(timestamp);
+            const diffInHours = Math.floor((now - time) / (1000 * 60 * 60));
+            
+            if (diffInHours < 1) return 'À l\'instant';
+            if (diffInHours === 1) return 'Il y a 1h';
+            return `Il y a ${diffInHours}h`;
+        }
+
+        // Sauvegarde des données
+        function saveData() {
+            localStorage.setItem('messagapp_users', JSON.stringify(users));
+            localStorage.setItem('messagapp_messages', JSON.stringify(messages));
+            localStorage.setItem('messagapp_stories', JSON.stringify(stories));
+            localStorage.setItem('messagapp_friends', JSON.stringify(friends));
+        }
+
+        // Gestion des paramètres
+        document.getElementById('notificationsEnabled').addEventListener('change', function() {
+            localStorage.setItem('messagapp_notifications', this.checked);
+        });
+
+        document.getElementById('themeSelect').addEventListener('change', function() {
+            localStorage.setItem('messagapp_theme', this.value);
+            // Ici on pourrait implémenter le changement de thème
+        });
+
+        // Fonctions de suppression
+        function deleteMessage(messageIndex) {
+            if (!currentChat) return;
+            
+            if (confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) {
+                const chatKey = getChatKey(currentUser, currentChat);
+                messages[chatKey].splice(messageIndex, 1);
+                saveData();
+                loadChatMessages();
+                loadConversations();
+            }
+        }
+
+        function deleteConversation() {
+            if (!currentChat) return;
+            
+            if (confirm(`Êtes-vous sûr de vouloir supprimer toute la conversation avec ${currentChat} ?`)) {
+                const chatKey = getChatKey(currentUser, currentChat);
+                delete messages[chatKey];
+                saveData();
+                
+                // Réinitialiser l'interface de chat
+                currentChat = null;
+                document.getElementById('chatHeader').innerHTML = '<p class="text-gray-500">Sélectionnez une conversation</p>';
+                document.getElementById('chatMessages').innerHTML = '';
+                document.getElementById('chatInput').classList.add('hidden');
+                
+                loadConversations();
+            }
+        }
+
+        function removeFriend(friendUsername) {
+            if (confirm(`Êtes-vous sûr de vouloir supprimer ${friendUsername} de vos amis ?`)) {
+                // Supprimer de la liste d'amis
+                friends[currentUser] = friends[currentUser].filter(friend => friend !== friendUsername);
+                friends[friendUsername] = friends[friendUsername].filter(friend => friend !== currentUser);
+                
+                // Supprimer la conversation
+                const chatKey = getChatKey(currentUser, friendUsername);
+                delete messages[chatKey];
+                
+                saveData();
+                loadFriends();
+                loadConversations();
+                
+                // Si c'était la conversation active, la fermer
+                if (currentChat === friendUsername) {
+                    currentChat = null;
+                    document.getElementById('chatHeader').innerHTML = '<p class="text-gray-500">Sélectionnez une conversation</p>';
+                    document.getElementById('chatMessages').innerHTML = '';
+                    document.getElementById('chatInput').classList.add('hidden');
+                }
+            }
+        }
+
+        function deleteAccount() {
+            if (confirm('⚠️ ATTENTION ⚠️\n\nÊtes-vous absolument sûr de vouloir supprimer votre compte ?\n\nCette action est irréversible et supprimera :\n- Votre profil\n- Tous vos messages\n- Toutes vos stories\n- Toutes vos amitiés\n\nTapez "SUPPRIMER" pour confirmer') && prompt('Tapez "SUPPRIMER" en majuscules pour confirmer la suppression de votre compte :') === 'SUPPRIMER') {
+                
+                // Supprimer l'utilisateur
+                delete users[currentUser];
+                
+                // Supprimer de toutes les listes d'amis
+                Object.keys(friends).forEach(user => {
+                    if (friends[user].includes(currentUser)) {
+                        friends[user] = friends[user].filter(friend => friend !== currentUser);
+                    }
+                });
+                delete friends[currentUser];
+                
+                // Supprimer toutes les conversations de l'utilisateur
+                Object.keys(messages).forEach(chatKey => {
+                    if (chatKey.includes(currentUser)) {
+                        delete messages[chatKey];
+                    }
+                });
+                
+                // Supprimer toutes les stories de l'utilisateur
+                stories = stories.filter(story => story.author !== currentUser);
+                
+                saveData();
+                alert('Votre compte a été supprimé avec succès.');
+                logout();
+            }
+        }
+
+        // Charger les paramètres sauvegardés
+        window.addEventListener('load', function() {
+            const savedNotifications = localStorage.getItem('messagapp_notifications');
+            if (savedNotifications !== null) {
+                document.getElementById('notificationsEnabled').checked = savedNotifications === 'true';
+            }
+            
+            const savedTheme = localStorage.getItem('messagapp_theme');
+            if (savedTheme) {
+                document.getElementById('themeSelect').value = savedTheme;
+            }
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96d88377d72de185',t:'MTc1NDkyMzQ5My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
